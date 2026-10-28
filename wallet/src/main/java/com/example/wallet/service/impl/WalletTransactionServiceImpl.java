@@ -35,6 +35,17 @@ public class WalletTransactionServiceImpl
   public WalletTransactionResponseDto createTransaction(
       CreateTransactionRequestDto request) {
 
+    if (request.getAmount() == null
+        || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+      throw new IllegalArgumentException(
+          "Transaction amount must be greater than zero");
+    }
+
+    if (request.getTransactionType() == null) {
+      throw new IllegalArgumentException(
+          "Transaction type is required");
+    }
+
     Wallet wallet = walletRepository
         .findActiveWalletByUserIdForUpdate(request.getUserId())
         .orElseThrow(() -> new WalletNotFoundException(

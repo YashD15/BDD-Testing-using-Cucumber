@@ -4,6 +4,7 @@
 *.trace.db
 settings.json
 DatabaseHealthController.java
+/docs
 ##############
 
 HELP.md
