@@ -25,6 +25,12 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public WalletResponseDto createWallet(CreateWalletRequestDto request) {
 
+        if (request.getCurrency() == null
+                || !"INR".equals(request.getCurrency())) {
+            throw new IllegalArgumentException(
+                    "Only INR currency is currently supported");
+        }
+
         // Prevent duplicate wallets for the same user.
         if (walletRepository
                 .findByUserIdAndIsDeletedFalse(request.getUserId())
