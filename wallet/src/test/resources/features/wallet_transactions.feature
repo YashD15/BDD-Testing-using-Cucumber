@@ -106,3 +106,35 @@ Feature: Wallet transactions
       | 100.00 | 900.00          |
       | 250.00 | 750.00          |
       | 500.00 | 500.00          |
+
+  Scenario: Successfully transfer money between two wallets
+    Given a sender wallet exists with a balance of 1000 INR
+    And a receiver wallet exists with a balance of 300 INR
+    When the sender transfers 200 INR to the receiver
+    Then the transfer should be successful
+    And the sender wallet balance should be 800 INR
+    And the receiver wallet balance should be 500 INR
+    And the transfer should create a debit and a credit transaction
+
+  Scenario: Reject transfer when sender has insufficient funds
+    Given a sender wallet exists with a balance of 100 INR
+    And a receiver wallet exists with a balance of 300 INR
+    When the sender transfers 200 INR to the receiver
+    Then the transfer should be rejected
+    And the sender wallet balance should be 100 INR
+    And the receiver wallet balance should be 300 INR
+    And the transfer should not create any transactions
+
+  Scenario: Reject transfer to the same user
+    Given a sender wallet exists with a balance of 1000 INR
+    When the sender transfers 200 INR to themselves
+    Then the transfer should be rejected
+    And the sender wallet balance should be 1000 INR
+
+  Scenario: Reject transfer when the receiver wallet does not exist
+    Given a sender wallet exists with a balance of 1000 INR
+    And the receiver wallet does not exist
+    When the sender transfers 200 INR to the receiver
+    Then the transfer should be rejected
+    And the sender wallet balance should be 1000 INR
+    And the transfer should not create any transactions

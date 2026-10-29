@@ -4,6 +4,7 @@ package com.example.wallet.service.impl;
 import com.example.wallet.dto.CreateWalletRequestDto;
 import com.example.wallet.dto.WalletResponseDto;
 import com.example.wallet.entity.Wallet;
+import com.example.wallet.exception.BusinessConflictException;
 import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.repository.WalletRepository;
 import org.junit.jupiter.api.Test;
@@ -79,8 +80,8 @@ class WalletServiceImplTest {
                 when(walletRepository.findByUserIdAndIsDeletedFalse(1L))
                                 .thenReturn(Optional.of(existingWallet));
 
-                IllegalArgumentException exception = assertThrows(
-                                IllegalArgumentException.class,
+                BusinessConflictException exception = assertThrows(
+                                BusinessConflictException.class,
                                 () -> walletService.createWallet(request));
 
                 assertEquals(
