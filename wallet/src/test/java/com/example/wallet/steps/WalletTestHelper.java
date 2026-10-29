@@ -2,6 +2,7 @@
 package com.example.wallet.steps;
 
 import com.example.wallet.entity.Wallet;
+import com.example.wallet.entity.WalletTransaction;
 import com.example.wallet.repository.WalletRepository;
 import com.example.wallet.repository.WalletTransactionRepository;
 
@@ -70,6 +71,60 @@ public class WalletTestHelper {
   public void deleteWallet(Long userId) {
     walletRepository.findByUserIdAndIsDeletedFalse(userId)
         .ifPresent(wallet -> walletRepository.delete(wallet));
+  }
+
+  public void prepareTransferWallet(Long userId, BigDecimal balance) {
+    Wallet wallet = walletRepository
+        .findByUserIdAndIsDeletedFalse(userId)
+        .orElse(null);
+
+    if (wallet == null) {
+      wallet = Wallet.builder()
+          .userId(userId)
+          .balance(balance)
+          .currency("INR")
+          .build();
+    } else {
+      clearTransactions(userId);
+      wallet.setBalance(balance);
+      wallet.setCurrency("INR");
+      wallet.setUpdatedAt(java.time.LocalDateTime.now());
+    }
+
+    walletRepository.save(wallet);
+  }
+
+  public void removeTransferWallet(Long userId) {
+    walletRepository.findByUserIdAndIsDeletedFalse(userId)
+        .ifPresent(wallet -> {
+          transactionRepository.deleteAll(
+              transactionRepository
+                  .findByWalletIdOrderByCreatedAtDesc(
+                      wallet.getId()));
+
+          walletRepository.delete(wallet);
+        });
+  }
+
+  public BigDecimal getTransferWalletBalance(Long userId) {
+    return walletRepository.findByUserIdAndIsDeletedFalse(userId)
+        .orElseThrow(() -> new AssertionError("Wallet not found for user: " + userId))
+        .getBalance();
+  }
+
+  public java.util.List<WalletTransaction> getTransferTransactions(
+      Long userId) {
+
+    Wallet wallet = walletRepository
+        .findByUserIdAndIsDeletedFalse(userId)
+        .orElse(null);
+
+    if (wallet == null) {
+      return java.util.Collections.emptyList();
+    }
+
+    return transactionRepository
+        .findByWalletIdOrderByCreatedAtDesc(wallet.getId());
   }
 
 }

@@ -6,6 +6,7 @@ import com.example.wallet.dto.WalletTransactionResponseDto;
 import com.example.wallet.entity.TransactionType;
 import com.example.wallet.entity.Wallet;
 import com.example.wallet.entity.WalletTransaction;
+import com.example.wallet.exception.BusinessConflictException;
 import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.repository.WalletRepository;
 import com.example.wallet.repository.WalletTransactionRepository;
@@ -60,8 +61,7 @@ public class WalletTransactionServiceImpl
       newBalance = currentBalance.add(amount);
     } else if (request.getTransactionType() == TransactionType.DEBIT) {
       if (currentBalance.compareTo(amount) < 0) {
-        throw new IllegalArgumentException(
-            "Insufficient wallet balance");
+        throw new BusinessConflictException("Insufficient wallet balance");
       }
 
       newBalance = currentBalance.subtract(amount);

@@ -120,7 +120,9 @@ class WalletTransactionControllerTest {
                 mockMvc.perform(get("/api/transactions")
                                 .param("userId", "999"))
                                 .andExpect(status().isNotFound())
-                                .andExpect(jsonPath("$.error")
-                                                .value("Wallet not found for user ID: 999"));
+                                .andExpect(jsonPath("$.message")
+                                                .value("Wallet not found for user ID: 999"))
+                                .andExpect(jsonPath("$.status").value(404))
+                                .andExpect(jsonPath("$.error").value("Not Found"));
         }
 }

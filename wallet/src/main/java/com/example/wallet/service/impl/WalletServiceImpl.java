@@ -4,6 +4,7 @@ package com.example.wallet.service.impl;
 import com.example.wallet.dto.CreateWalletRequestDto;
 import com.example.wallet.dto.WalletResponseDto;
 import com.example.wallet.entity.Wallet;
+import com.example.wallet.exception.BusinessConflictException;
 import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.repository.WalletRepository;
 import com.example.wallet.service.WalletService;
@@ -35,7 +36,7 @@ public class WalletServiceImpl implements WalletService {
         if (walletRepository
                 .findByUserIdAndIsDeletedFalse(request.getUserId())
                 .isPresent()) {
-            throw new IllegalArgumentException(
+            throw new BusinessConflictException(
                     "User already has an active wallet");
         }
 
