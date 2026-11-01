@@ -5,7 +5,8 @@ import com.example.wallet.dto.CreateTransactionRequestDto;
 import com.example.wallet.dto.WalletTransactionResponseDto;
 import com.example.wallet.service.WalletTransactionService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Positive;
+
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -15,8 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -42,11 +41,14 @@ public class WalletTransactionController {
   }
 
   @GetMapping
-  public ResponseEntity<List<WalletTransactionResponseDto>> getTransactionsByUserId(
-      @RequestParam("userId") @Positive(message = "User ID must be greater than zero") Long userId) {
+  public ResponseEntity<Page<WalletTransactionResponseDto>> getTransactionsByUserId(
+      @RequestParam("userId") Long userId,
+      @RequestParam(name = "page", defaultValue = "0") int page,
+      @RequestParam(name = "size", defaultValue = "10") int size) {
 
-    List<WalletTransactionResponseDto> response = transactionService.getTransactionsByUserId(userId);
+    Page<WalletTransactionResponseDto> transactions = transactionService.getTransactionsByUserId(
+        userId, page, size);
 
-    return ResponseEntity.ok(response);
+    return ResponseEntity.ok(transactions);
   }
 }

@@ -5,6 +5,8 @@ import com.example.wallet.dto.CreateTransactionRequestDto;
 import com.example.wallet.dto.CreateWalletRequestDto;
 import com.example.wallet.dto.WalletTransactionResponseDto;
 import com.example.wallet.entity.TransactionType;
+import com.example.wallet.entity.WalletTransaction;
+import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.service.WalletService;
 import com.example.wallet.service.WalletTransactionService;
 import io.cucumber.java.en.Given;
@@ -31,6 +33,7 @@ public class WalletTransactionSteps {
   private WalletService walletService;
 
   private Exception walletCreationException;
+  private Exception walletAccessException;
 
   private Long userId;
   private WalletTransactionResponseDto transactionResponse;
@@ -41,16 +44,11 @@ public class WalletTransactionSteps {
   public void aWalletExistsWithBalance(double initialBalance) {
     userId = 900001L;
 
-    if (!walletTestHelper.walletExists(userId)) {
-      walletTestHelper.createWalletWithBalance(
-          BigDecimal.valueOf(initialBalance));
-    }
-
-    walletTestHelper.clearTransactions(userId);
-    walletTestHelper.resetWallet(
-        userId,
+    walletTestHelper.removeWalletAndTransactions(userId);
+    walletTestHelper.createWalletWithBalance(
         BigDecimal.valueOf(initialBalance));
 
+    walletCreationException = null;
     transactionResponse = null;
     transactionException = null;
     transactionHistory = null;
@@ -111,7 +109,10 @@ public class WalletTransactionSteps {
 
   @When("the user requests transaction history")
   public void theUserRequestsTransactionHistory() {
-    transactionHistory = transactionService.getTransactionsByUserId(userId);
+    transactionHistory = transactionService.getTransactionsByUserId(
+        userId,
+        0,
+        10).getContent();
   }
 
   @Then("the transaction history should include a CREDIT of {double} INR")
@@ -229,4 +230,51 @@ public class WalletTransactionSteps {
     }
   }
 
+  @When("the user deletes their wallet")
+  public void theUserDeletesTheirWallet() {
+    walletService.deleteWallet(userId);
+  }
+
+  @Then("the wallet should be marked as deleted")
+  public void theWalletShouldBeMarkedAsDeleted() {
+    assertTrue(walletTestHelper.walletIsSoftDeleted(userId));
+  }
+
+  @Then("the wallet record should still exist in the database")
+  public void theWalletRecordShouldStillExist() {
+    assertTrue(walletTestHelper.walletRecordExists(userId));
+  }
+
+  @When("the user requests their wallet details")
+  public void theUserRequestsTheirWalletDetails() {
+    try {
+      walletService.getWalletByUserId(userId);
+    } catch (Exception ex) {
+      walletAccessException = ex;
+    }
+  }
+
+  @Then("the wallet should not be found")
+  public void theWalletShouldNotBeFound() {
+    assertTrue(walletAccessException instanceof WalletNotFoundException);
+  }
+
+  @Then("the stored wallet balance should remain {double} INR")
+  public void theStoredWalletBalanceShouldRemain(double expectedBalance) {
+    BigDecimal actualBalance = walletTestHelper.getWalletBalanceIncludingDeleted(userId);
+
+    assertEquals(
+        0,
+        actualBalance.compareTo(BigDecimal.valueOf(expectedBalance)));
+  }
+
+  @Then("the existing transaction history should be preserved")
+  public void theExistingTransactionHistoryShouldBePreserved() {
+    List<WalletTransaction> transactions = walletTestHelper.getTransactionsIncludingDeleted(userId);
+
+    assertTrue(
+        transactions.stream().anyMatch(transaction -> transaction.getAmount().compareTo(
+            new BigDecimal("200.00")) == 0),
+        "The previous 200 INR transaction should still exist");
+  }
 }

@@ -12,15 +12,17 @@ import java.util.Optional;
 
 public interface WalletRepository extends JpaRepository<Wallet, Long> {
 
-    Optional<Wallet> findByUserIdAndIsDeletedFalse(Long userId);
+        Optional<Wallet> findByUserIdAndIsDeletedFalse(Long userId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("""
-            SELECT w
-            FROM Wallet w
-            WHERE w.userId = :userId
-              AND w.isDeleted = false
-            """)
-    Optional<Wallet> findActiveWalletByUserIdForUpdate(
-            @Param("userId") Long userId);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("""
+                        SELECT w
+                        FROM Wallet w
+                        WHERE w.userId = :userId
+                          AND w.isDeleted = false
+                        """)
+        Optional<Wallet> findActiveWalletByUserIdForUpdate(
+                        @Param("userId") Long userId);
+
+        Optional<Wallet> findByUserId(Long userId);
 }

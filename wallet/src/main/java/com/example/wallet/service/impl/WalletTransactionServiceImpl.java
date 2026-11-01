@@ -11,11 +11,15 @@ import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.repository.WalletRepository;
 import com.example.wallet.repository.WalletTransactionRepository;
 import com.example.wallet.service.WalletTransactionService;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Service
 public class WalletTransactionServiceImpl
@@ -85,20 +89,52 @@ public class WalletTransactionServiceImpl
     return WalletTransactionResponseDto.fromEntity(savedTransaction);
   }
 
-  @Override
   @Transactional(readOnly = true)
-  public List<WalletTransactionResponseDto> getTransactionsByUserId(
-      Long userId) {
+  public Page<WalletTransactionResponseDto> getTransactionsByUserId(
+      Long userId,
+      int page,
+      int size) {
+
+    if (userId == null || userId <= 0) {
+      throw new IllegalArgumentException(
+          "User ID must be a positive number");
+    }
+
+    if (page < 0) {
+      throw new IllegalArgumentException(
+          "Page number cannot be negative");
+    }
+
+    if (size < 1 || size > 100) {
+      throw new IllegalArgumentException(
+          "Page size must be between 1 and 100");
+    }
 
     Wallet wallet = walletRepository
         .findByUserIdAndIsDeletedFalse(userId)
         .orElseThrow(() -> new WalletNotFoundException(
             "Wallet not found for user ID: " + userId));
 
-    return transactionRepository
-        .findByWalletIdOrderByCreatedAtDesc(wallet.getId())
-        .stream()
-        .map(WalletTransactionResponseDto::fromEntity)
-        .toList();
+    Pageable pageable = PageRequest.of(
+        page,
+        size,
+        Sort.by(
+            Sort.Order.desc("createdAt"),
+            Sort.Order.desc("id")));
+
+    Page<WalletTransaction> transactions = transactionRepository
+        .findByWalletIdOrderByCreatedAtDescIdDesc(
+            wallet.getId(),
+            pageable);
+
+    return transactions.map(transaction -> WalletTransactionResponseDto.builder()
+        .id(transaction.getId())
+        .walletId(transaction.getWalletId())
+        .transactionType(transaction.getTransactionType())
+        .amount(transaction.getAmount())
+        .balanceAfter(transaction.getBalanceAfter())
+        .description(transaction.getDescription())
+        .createdAt(transaction.getCreatedAt())
+        .build());
   }
 }

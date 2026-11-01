@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -21,6 +24,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -100,20 +104,33 @@ class WalletTransactionControllerTest {
                                 .createdAt(LocalDateTime.now())
                                 .build();
 
-                when(transactionService.getTransactionsByUserId(1L))
-                                .thenReturn(List.of(transaction));
+                Page<WalletTransactionResponseDto> transactionPage = new PageImpl<>(
+                                List.of(transaction),
+                                PageRequest.of(0, 10),
+                                1);
+
+                when(transactionService.getTransactionsByUserId(
+                                eq(1L), eq(0), eq(10)))
+                                .thenReturn(transactionPage);
 
                 mockMvc.perform(get("/api/transactions")
                                 .param("userId", "1"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$[0].id").value(10))
-                                .andExpect(jsonPath("$[0].transactionType").value("CREDIT"));
+                                .andExpect(jsonPath("$.content[0].id").value(10))
+                                .andExpect(jsonPath("$.content[0].transactionType")
+                                                .value("CREDIT"))
+                                .andExpect(jsonPath("$.totalElements").value(1))
+                                .andExpect(jsonPath("$.totalPages").value(1))
+                                .andExpect(jsonPath("$.number").value(0))
+                                .andExpect(jsonPath("$.size").value(10));
         }
 
         @Test
         void getTransactionsShouldReturn404WhenWalletDoesNotExist()
                         throws Exception {
-                when(transactionService.getTransactionsByUserId(999L))
+
+                when(transactionService.getTransactionsByUserId(
+                                999L, 0, 10))
                                 .thenThrow(new WalletNotFoundException(
                                                 "Wallet not found for user ID: 999"));
 
@@ -124,5 +141,23 @@ class WalletTransactionControllerTest {
                                                 .value("Wallet not found for user ID: 999"))
                                 .andExpect(jsonPath("$.status").value(404))
                                 .andExpect(jsonPath("$.error").value("Not Found"));
+        }
+
+        @Test
+        void createTransactionShouldRejectMoreThanTwoDecimalPlaces() throws Exception {
+                mockMvc.perform(post("/api/transactions")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                                {
+                                                    "userId": 101,
+                                                    "transactionType": "CREDIT",
+                                                    "amount": 10.555,
+                                                    "description": "Invalid precision test"
+                                                }
+                                                """))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.status").value(400))
+                                .andExpect(jsonPath("$.message")
+                                                .value("Transaction amount must have at most 2 decimal places"));
         }
 }
