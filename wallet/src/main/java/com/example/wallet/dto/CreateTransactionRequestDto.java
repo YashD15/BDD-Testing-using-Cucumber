@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.validation.constraints.Digits;
 
 import java.math.BigDecimal;
 
@@ -24,8 +25,9 @@ public class CreateTransactionRequestDto {
   @NotNull(message = "Transaction type is required")
   private TransactionType transactionType;
 
-  @NotNull(message = "Amount is required")
-  @DecimalMin(value = "0.01", message = "Amount must be at least 0.01")
+  @NotNull(message = "Transaction amount is required")
+  @DecimalMin(value = "0.01", message = "Transaction amount must be at least 0.01")
+  @Digits(integer = 17, fraction = 2, message = "Transaction amount must have at most 2 decimal places")
   private BigDecimal amount;
 
   @Size(max = 255, message = "Description cannot exceed 255 characters")

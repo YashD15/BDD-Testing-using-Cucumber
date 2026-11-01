@@ -9,4 +9,6 @@ public interface WalletService {
     WalletResponseDto createWallet(CreateWalletRequestDto request);
 
     WalletResponseDto getWalletByUserId(Long userId);
+
+    void deleteWallet(Long userId);
 }

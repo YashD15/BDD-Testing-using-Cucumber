@@ -4,13 +4,16 @@ package com.example.wallet.service;
 import com.example.wallet.dto.CreateTransactionRequestDto;
 import com.example.wallet.dto.WalletTransactionResponseDto;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
 
 public interface WalletTransactionService {
 
-  WalletTransactionResponseDto createTransaction(
-      CreateTransactionRequestDto request);
+    WalletTransactionResponseDto createTransaction(
+            CreateTransactionRequestDto request);
 
-  List<WalletTransactionResponseDto> getTransactionsByUserId(
-      Long userId);
+    Page<WalletTransactionResponseDto> getTransactionsByUserId(
+            Long userId,
+            int page,
+            int size);
+
 }

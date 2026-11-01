@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 public class WalletServiceImpl implements WalletService {
@@ -61,5 +62,25 @@ public class WalletServiceImpl implements WalletService {
                         "Wallet not found for user ID: " + userId));
 
         return WalletResponseDto.fromEntity(wallet);
+    }
+
+    @Override
+    @Transactional
+    public void deleteWallet(Long userId) {
+
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException(
+                    "User ID must be a positive number");
+        }
+
+        Wallet wallet = walletRepository
+                .findByUserIdAndIsDeletedFalse(userId)
+                .orElseThrow(() -> new WalletNotFoundException(
+                        "Wallet not found for user ID: " + userId));
+
+        wallet.setDeleted(true);
+        wallet.setUpdatedAt(LocalDateTime.now());
+
+        walletRepository.save(wallet);
     }
 }

@@ -4,7 +4,6 @@ import com.example.wallet.dto.TransferHistoryFilterDto;
 import com.example.wallet.dto.TransferHistoryResponseDto;
 import com.example.wallet.dto.TransferRequestDto;
 import com.example.wallet.dto.TransferResponseDto;
-import com.example.wallet.entity.TransactionType;
 import com.example.wallet.entity.Wallet;
 import com.example.wallet.entity.WalletTransaction;
 import com.example.wallet.entity.WalletTransfer;
@@ -34,8 +33,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -385,5 +387,63 @@ class TransferServiceImplTest {
                                                 TransferHistoryFilterDto.builder().build(),
                                                 0,
                                                 10));
+        }
+
+        @Test
+        void getTransferHistoryShouldApplyFiltersAndPaginationTogether() {
+                Long userId = 101L;
+                Long walletId = 1L;
+
+                TransferHistoryFilterDto filters = TransferHistoryFilterDto.builder()
+                                .status("COMPLETED")
+                                .startDate(LocalDate.of(2026, 1, 1))
+                                .endDate(LocalDate.of(2026, 1, 31))
+                                .build();
+
+                Wallet wallet = Wallet.builder()
+                                .id(walletId)
+                                .userId(userId)
+                                .currency("INR")
+                                .balance(new BigDecimal("1000.00"))
+                                .isDeleted(false)
+                                .build();
+
+                when(walletRepository.findByUserIdAndIsDeletedFalse(userId))
+                                .thenReturn(Optional.of(wallet));
+
+                Pageable pageable = PageRequest.of(
+                                1,
+                                5,
+                                Sort.by(
+                                                Sort.Order.desc("createdAt"),
+                                                Sort.Order.desc("id")));
+
+                Page<WalletTransfer> transfers = new PageImpl<>(
+                                List.of(),
+                                pageable,
+                                7);
+
+                when(transferRepository.findTransferHistoryByWalletId(
+                                eq(walletId),
+                                eq("COMPLETED"),
+                                eq(LocalDate.of(2026, 1, 1).atStartOfDay()),
+                                eq(LocalDate.of(2026, 2, 1).atStartOfDay()),
+                                any(Pageable.class))).thenReturn(transfers);
+
+                Page<TransferHistoryResponseDto> result = transferService.getTransferHistory(userId, filters, 1, 5);
+
+                assertNotNull(result);
+                assertEquals(7, result.getTotalElements());
+                assertEquals(2, result.getTotalPages());
+                assertEquals(1, result.getNumber());
+                assertEquals(5, result.getSize());
+                assertTrue(result.getContent().isEmpty());
+
+                verify(transferRepository).findTransferHistoryByWalletId(
+                                eq(walletId),
+                                eq("COMPLETED"),
+                                eq(LocalDate.of(2026, 1, 1).atStartOfDay()),
+                                eq(LocalDate.of(2026, 2, 1).atStartOfDay()),
+                                any(Pageable.class));
         }
 }

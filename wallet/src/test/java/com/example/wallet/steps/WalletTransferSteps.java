@@ -6,6 +6,8 @@ import com.example.wallet.dto.TransferResponseDto;
 import com.example.wallet.entity.TransactionType;
 import com.example.wallet.entity.WalletTransaction;
 import com.example.wallet.service.TransferService;
+import com.example.wallet.service.WalletService;
+
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -28,26 +30,34 @@ public class WalletTransferSteps {
   @Autowired
   private WalletTestHelper helper;
 
+  @Autowired
+  private WalletService walletService;
+
   private TransferResponseDto transferResponse;
   private RuntimeException transferException;
 
   @Given("a sender wallet exists with a balance of {double} INR")
   public void aSenderWalletExists(double balance) {
+    helper.removeWalletAndTransactions(SENDER_ID);
+
     helper.prepareTransferWallet(
         SENDER_ID, BigDecimal.valueOf(balance));
+
     transferResponse = null;
     transferException = null;
   }
 
   @Given("a receiver wallet exists with a balance of {double} INR")
   public void aReceiverWalletExists(double balance) {
+    helper.removeWalletAndTransactions(RECEIVER_ID);
+
     helper.prepareTransferWallet(
         RECEIVER_ID, BigDecimal.valueOf(balance));
   }
 
   @Given("the receiver wallet does not exist")
   public void theReceiverWalletDoesNotExist() {
-    helper.removeTransferWallet(RECEIVER_ID);
+    helper.removeWalletAndTransactions(RECEIVER_ID);
   }
 
   @When("the sender transfers {double} INR to the receiver")
@@ -131,5 +141,37 @@ public class WalletTransferSteps {
     assertTrue(
         helper.getTransferTransactions(RECEIVER_ID).isEmpty(),
         "Receiver should have no transactions from this scenario");
+  }
+
+  @When("the sender wallet is soft-deleted")
+  public void theSenderWalletIsSoftDeleted() {
+    walletService.deleteWallet(SENDER_ID);
+  }
+
+  @When("the receiver wallet is soft-deleted")
+  public void theReceiverWalletIsSoftDeleted() {
+    walletService.deleteWallet(RECEIVER_ID);
+  }
+
+  @And("the stored sender wallet balance should remain {double} INR")
+  public void theStoredSenderWalletBalanceShouldRemain(
+      double expectedBalance) {
+
+    assertEquals(
+        0,
+        BigDecimal.valueOf(expectedBalance).compareTo(
+            helper.getWalletBalanceIncludingDeleted(SENDER_ID)),
+        "Unexpected stored sender balance");
+  }
+
+  @And("the stored receiver wallet balance should remain {double} INR")
+  public void theStoredReceiverWalletBalanceShouldRemain(
+      double expectedBalance) {
+
+    assertEquals(
+        0,
+        BigDecimal.valueOf(expectedBalance).compareTo(
+            helper.getWalletBalanceIncludingDeleted(RECEIVER_ID)),
+        "Unexpected stored receiver balance");
   }
 }

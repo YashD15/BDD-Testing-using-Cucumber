@@ -1,4 +1,3 @@
-
 package com.example.wallet.service.impl;
 
 import com.example.wallet.dto.CreateWalletRequestDto;
@@ -17,8 +16,10 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -58,8 +59,7 @@ class WalletServiceImplTest {
                 assertEquals(0, response.getBalance().compareTo(BigDecimal.ZERO));
                 assertEquals("INR", response.getCurrency());
 
-                verify(walletRepository)
-                                .findByUserIdAndIsDeletedFalse(1L);
+                verify(walletRepository).findByUserIdAndIsDeletedFalse(1L);
                 verify(walletRepository).save(any(Wallet.class));
         }
 
@@ -114,8 +114,7 @@ class WalletServiceImplTest {
                                 response.getBalance().compareTo(new BigDecimal("250.00")));
                 assertEquals("INR", response.getCurrency());
 
-                verify(walletRepository)
-                                .findByUserIdAndIsDeletedFalse(1L);
+                verify(walletRepository).findByUserIdAndIsDeletedFalse(1L);
         }
 
         @Test
@@ -132,8 +131,76 @@ class WalletServiceImplTest {
                                 "Wallet not found for user ID: 9999",
                                 exception.getMessage());
 
-                verify(walletRepository)
-                                .findByUserIdAndIsDeletedFalse(9999L);
+                verify(walletRepository).findByUserIdAndIsDeletedFalse(9999L);
         }
 
+        // Day 14: Soft deletion tests
+
+        @Test
+        void deleteWalletShouldSoftDeleteExistingWallet() {
+
+                Wallet existingWallet = Wallet.builder()
+                                .id(10L)
+                                .userId(1L)
+                                .balance(new BigDecimal("500.00"))
+                                .currency("INR")
+                                .build();
+
+                when(walletRepository.findByUserIdAndIsDeletedFalse(1L))
+                                .thenReturn(Optional.of(existingWallet));
+
+                walletService.deleteWallet(1L);
+
+                assertTrue(existingWallet.isDeleted());
+
+                verify(walletRepository).findByUserIdAndIsDeletedFalse(1L);
+                verify(walletRepository).save(existingWallet);
+        }
+
+        @Test
+        void deleteWalletShouldThrowWhenWalletDoesNotExist() {
+
+                when(walletRepository.findByUserIdAndIsDeletedFalse(9999L))
+                                .thenReturn(Optional.empty());
+
+                WalletNotFoundException exception = assertThrows(
+                                WalletNotFoundException.class,
+                                () -> walletService.deleteWallet(9999L));
+
+                assertEquals(
+                                "Wallet not found for user ID: 9999",
+                                exception.getMessage());
+
+                verify(walletRepository, never()).save(any(Wallet.class));
+        }
+
+        @Test
+        void deleteWalletShouldThrowWhenWalletIsAlreadyDeleted() {
+
+                when(walletRepository.findByUserIdAndIsDeletedFalse(1L))
+                                .thenReturn(Optional.empty());
+
+                assertThrows(
+                                WalletNotFoundException.class,
+                                () -> walletService.deleteWallet(1L));
+
+                verify(walletRepository, never()).save(any(Wallet.class));
+        }
+
+        @Test
+        void deleteWalletShouldRejectInvalidUserId() {
+
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> walletService.deleteWallet(0L));
+
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> walletService.deleteWallet(-1L));
+
+                verify(walletRepository, never())
+                                .findByUserIdAndIsDeletedFalse(any());
+
+                verify(walletRepository, never()).save(any(Wallet.class));
+        }
 }

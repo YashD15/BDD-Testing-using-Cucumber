@@ -6,6 +6,8 @@ import com.example.wallet.entity.WalletTransaction;
 import com.example.wallet.repository.WalletRepository;
 import com.example.wallet.repository.WalletTransactionRepository;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,10 +63,7 @@ public class WalletTestHelper {
   @Transactional
   public void clearTransactions(Long userId) {
     walletRepository.findByUserIdAndIsDeletedFalse(userId)
-        .ifPresent(wallet -> transactionRepository.deleteAll(
-            transactionRepository
-                .findByWalletIdOrderByCreatedAtDesc(
-                    wallet.getId())));
+        .ifPresent(wallet -> transactionRepository.deleteByWalletId(wallet.getId()));
   }
 
   @Transactional
@@ -94,14 +93,11 @@ public class WalletTestHelper {
     walletRepository.save(wallet);
   }
 
+  @Transactional
   public void removeTransferWallet(Long userId) {
     walletRepository.findByUserIdAndIsDeletedFalse(userId)
         .ifPresent(wallet -> {
-          transactionRepository.deleteAll(
-              transactionRepository
-                  .findByWalletIdOrderByCreatedAtDesc(
-                      wallet.getId()));
-
+          transactionRepository.deleteByWalletId(wallet.getId());
           walletRepository.delete(wallet);
         });
   }
@@ -124,7 +120,57 @@ public class WalletTestHelper {
     }
 
     return transactionRepository
-        .findByWalletIdOrderByCreatedAtDesc(wallet.getId());
+        .findByWalletIdOrderByCreatedAtDescIdDesc(
+            wallet.getId(),
+            PageRequest.of(
+                0,
+                100,
+                Sort.by(
+                    Sort.Order.desc("createdAt"),
+                    Sort.Order.desc("id"))))
+        .getContent();
+  }
+
+  @Transactional(readOnly = true)
+  public boolean walletRecordExists(Long userId) {
+    return walletRepository.findByUserId(userId).isPresent();
+  }
+
+  @Transactional(readOnly = true)
+  public boolean walletIsSoftDeleted(Long userId) {
+    return walletRepository.findByUserId(userId)
+        .map(Wallet::isDeleted)
+        .orElse(false);
+  }
+
+  @Transactional(readOnly = true)
+  public BigDecimal getWalletBalanceIncludingDeleted(Long userId) {
+    return walletRepository.findByUserId(userId)
+        .orElseThrow(() -> new IllegalStateException("Test wallet record not found"))
+        .getBalance();
+  }
+
+  @Transactional
+  public void removeWalletAndTransactions(Long userId) {
+    walletRepository.findByUserId(userId)
+        .ifPresent(wallet -> {
+          transactionRepository.deleteByWalletId(wallet.getId());
+          walletRepository.delete(wallet);
+        });
+  }
+
+  @Transactional(readOnly = true)
+  public java.util.List<WalletTransaction> getTransactionsIncludingDeleted(
+      Long userId) {
+
+    Wallet wallet = walletRepository.findByUserId(userId)
+        .orElseThrow(() -> new IllegalStateException("Test wallet record not found"));
+
+    return transactionRepository
+        .findByWalletIdOrderByCreatedAtDescIdDesc(
+            wallet.getId(),
+            PageRequest.of(0, 100))
+        .getContent();
   }
 
 }

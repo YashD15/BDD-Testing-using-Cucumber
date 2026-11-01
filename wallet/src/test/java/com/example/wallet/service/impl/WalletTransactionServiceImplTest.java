@@ -1,11 +1,10 @@
-
 package com.example.wallet.service.impl;
 
 import com.example.wallet.dto.CreateTransactionRequestDto;
 import com.example.wallet.dto.WalletTransactionResponseDto;
-import com.example.wallet.entity.TransactionType;
 import com.example.wallet.entity.Wallet;
 import com.example.wallet.entity.WalletTransaction;
+import com.example.wallet.entity.TransactionType;
 import com.example.wallet.exception.BusinessConflictException;
 import com.example.wallet.exception.WalletNotFoundException;
 import com.example.wallet.repository.WalletRepository;
@@ -16,17 +15,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WalletTransactionServiceImplTest {
@@ -129,7 +130,7 @@ class WalletTransactionServiceImplTest {
         }
 
         @Test
-        void getTransactionsShouldReturnHistoryForUser() {
+        void getTransactionsShouldReturnPaginatedHistoryForUser() {
                 WalletTransaction transaction = WalletTransaction.builder()
                                 .id(100L)
                                 .walletId(10L)
@@ -139,18 +140,65 @@ class WalletTransactionServiceImplTest {
                                 .description("Test deposit")
                                 .build();
 
+                Page<WalletTransaction> transactionPage = new PageImpl<>(
+                                List.of(transaction),
+                                PageRequest.of(0, 10),
+                                1);
+
                 when(walletRepository.findByUserIdAndIsDeletedFalse(1L))
                                 .thenReturn(Optional.of(wallet));
 
-                when(transactionRepository.findByWalletIdOrderByCreatedAtDesc(10L))
-                                .thenReturn(List.of(transaction));
+                when(transactionRepository
+                                .findByWalletIdOrderByCreatedAtDescIdDesc(
+                                                eq(10L),
+                                                any(Pageable.class)))
+                                .thenReturn(transactionPage);
 
-                List<WalletTransactionResponseDto> response = transactionService.getTransactionsByUserId(1L);
+                Page<WalletTransactionResponseDto> response = transactionService.getTransactionsByUserId(1L, 0, 10);
 
-                assertEquals(1, response.size());
-                assertEquals(100L, response.get(0).getId());
-                assertEquals(TransactionType.CREDIT, response.get(0).getTransactionType());
-                assertEquals(new BigDecimal("500.00"), response.get(0).getBalanceAfter());
+                assertEquals(1, response.getContent().size());
+                assertEquals(1, response.getTotalElements());
+                assertEquals(1, response.getTotalPages());
+                assertEquals(0, response.getNumber());
+                assertEquals(10, response.getSize());
+
+                WalletTransactionResponseDto dto = response.getContent().get(0);
+
+                assertEquals(100L, dto.getId());
+                assertEquals(TransactionType.CREDIT, dto.getTransactionType());
+                assertEquals(
+                                new BigDecimal("500.00"),
+                                dto.getBalanceAfter());
+        }
+
+        @Test
+        void getTransactionsShouldRejectNegativePage() {
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> transactionService.getTransactionsByUserId(1L, -1, 10));
+
+                verify(walletRepository, never())
+                                .findByUserIdAndIsDeletedFalse(anyLong());
+        }
+
+        @Test
+        void getTransactionsShouldRejectInvalidPageSize() {
+                assertThrows(
+                                IllegalArgumentException.class,
+                                () -> transactionService.getTransactionsByUserId(1L, 0, 101));
+
+                verify(walletRepository, never())
+                                .findByUserIdAndIsDeletedFalse(anyLong());
+        }
+
+        @Test
+        void getTransactionsShouldFailWhenWalletDoesNotExist() {
+                when(walletRepository.findByUserIdAndIsDeletedFalse(999L))
+                                .thenReturn(Optional.empty());
+
+                assertThrows(
+                                WalletNotFoundException.class,
+                                () -> transactionService.getTransactionsByUserId(999L, 0, 10));
         }
 
         @Test

@@ -138,3 +138,52 @@ Feature: Wallet transactions
     Then the transfer should be rejected
     And the sender wallet balance should be 1000 INR
     And the transfer should not create any transactions
+
+  # Day 14: Wallet soft deletion
+
+  Scenario: Successfully soft-delete an existing wallet
+    Given a wallet exists with a balance of 500.00 INR
+    When the user deletes their wallet
+    Then the wallet should be marked as deleted
+    And the wallet record should still exist in the database
+
+  Scenario: Reject access to a deleted wallet
+    Given a wallet exists with a balance of 500.00 INR
+    When the user deletes their wallet
+    And the user requests their wallet details
+    Then the wallet should not be found
+
+  Scenario: Reject a transaction against a deleted wallet
+    Given a wallet exists with a balance of 500.00 INR
+    When the user deletes their wallet
+    And the user deposits 200.00 INR
+    Then the transaction should be rejected
+    And the stored wallet balance should remain 500.00 INR
+
+  Scenario: Preserve transaction history after wallet deletion
+    Given a wallet exists with a balance of 500.00 INR
+    When the user deposits 200.00 INR
+    And the user deletes their wallet
+    Then the existing transaction history should be preserved
+
+      # Day 14: Transfers involving soft-deleted wallets
+
+  Scenario: Reject transfer from a soft-deleted sender wallet
+    Given a sender wallet exists with a balance of 1000.00 INR
+    And a receiver wallet exists with a balance of 300.00 INR
+    When the sender wallet is soft-deleted
+    And the sender transfers 200.00 INR to the receiver
+    Then the transfer should be rejected
+    And the stored sender wallet balance should remain 1000.00 INR
+    And the receiver wallet balance should be 300.00 INR
+    And the transfer should not create any transactions
+
+  Scenario: Reject transfer to a soft-deleted receiver wallet
+    Given a sender wallet exists with a balance of 1000.00 INR
+    And a receiver wallet exists with a balance of 300.00 INR
+    When the receiver wallet is soft-deleted
+    And the sender transfers 200.00 INR to the receiver
+    Then the transfer should be rejected
+    And the sender wallet balance should be 1000.00 INR
+    And the stored receiver wallet balance should remain 300.00 INR
+    And the transfer should not create any transactions

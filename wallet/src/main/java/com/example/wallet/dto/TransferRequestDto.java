@@ -1,6 +1,7 @@
 package com.example.wallet.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -29,6 +30,7 @@ public class TransferRequestDto {
 
   @NotNull(message = "Transfer amount is required")
   @DecimalMin(value = "0.01", message = "Transfer amount must be at least 0.01")
+  @Digits(integer = 17, fraction = 2, message = "Transfer amount must have at most 2 decimal places")
   private BigDecimal amount;
 
   @Size(max = 255, message = "Description cannot exceed 255 characters")
